@@ -122,7 +122,20 @@
 - [x] Test error recovery end-to-end
 
 ## GitHub Repository Setup
-- [ ] Create new GitHub repo 'thatthing-on-a-stick'
-- [ ] Initialize git repository in project
-- [ ] Add all project files to git
-- [ ] Push to GitHub
+- [x] Create new GitHub repo 'thatthing-on-a-stick'
+- [x] Initialize git repository in project
+- [x] Add all project files to git
+- [x] Push to GitHub
+
+## Critical Bug: Persistent "No response from LLM" Error
+- [x] Check server logs for actual error details
+- [x] Identify if error is in main question or answer choices generation
+- [x] Fix sendMessage mutation to return created message
+- [ ] Test with simplified prompts to isolate issue
+- [ ] Verify error is caught and handled properly
+
+## GitHub & Netlify Deployment
+- [x] Commit all recent changes
+- [x] Push to GitHub repository
+- [x] Create Netlify configuration file
+- [x] Add deployment instructions

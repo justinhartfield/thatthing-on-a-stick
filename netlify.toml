@@ -1,0 +1,35 @@
+[build]
+  command = "pnpm install && pnpm build"
+  publish = "dist/public"
+
+[build.environment]
+  NODE_VERSION = "22.13.0"
+  NPM_FLAGS = "--legacy-peer-deps"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[functions]
+  node_bundler = "esbuild"
+  directory = "dist"
+  external_node_modules = [
+    "lightningcss",
+    "@tailwindcss/oxide",
+    "@tailwindcss/oxide-linux-x64-gnu",
+    "@tailwindcss/oxide-linux-x64-musl",
+    "@tailwindcss/vite",
+    "vite",
+    "@vitejs/plugin-react",
+    "@babel/core",
+    "@babel/preset-typescript",
+    "esbuild"
+  ]
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
