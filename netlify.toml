@@ -5,6 +5,8 @@
 [build.environment]
   NODE_VERSION = "22.13.0"
   NPM_FLAGS = "--legacy-peer-deps"
+  # Disable frozen lockfile for pnpm in CI
+  CI = ""
 
 # API routes must come FIRST - redirect to the serverless function
 [[redirects]]
