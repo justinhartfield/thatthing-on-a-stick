@@ -70,3 +70,13 @@
 - [x] Create strategy presentation UI component
 - [x] Add strategy validation and approval flow
 - [x] Test complete discovery-to-strategy workflow
+
+## Visual Concept Generation
+- [x] Build concept generation engine with LLM for creative direction
+- [x] Generate 3 distinct visual concepts with different styles
+- [x] Create color palette generator for each concept
+- [x] Implement typography recommendation system
+- [x] Integrate AI image generation for moodboards
+- [x] Create concept comparison UI
+- [x] Add concept selection and refinement workflow
+- [x] Test complete strategy-to-concepts flow

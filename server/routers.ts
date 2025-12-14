@@ -7,6 +7,7 @@ import * as db from "./db";
 import { invokeLLM } from "./_core/llm";
 import { generateImage } from "./_core/imageGeneration";
 import { synthesizeBrandStrategy, formatStrategyPresentation, isDiscoveryComplete } from "./strategySynthesis";
+import { generateCompleteConceptsWithImages, formatConceptsPresentation } from "./conceptGeneration";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -135,12 +136,58 @@ export const appRouter = router({
           // Handle strategy approval/refinement
           if (input.content.toLowerCase().includes('approve')) {
             aiResponse = "Perfect! I'll now generate 3 distinct creative concepts for your brand. This will take a few moments...";
-            // Trigger concept generation
+            
+            // Generate concepts
+            const strategy = JSON.parse(project.strategyData!);
+            const concepts = await generateCompleteConceptsWithImages(project, strategy);
+            
+            // Save concepts to database
+            for (const concept of concepts) {
+              await db.createBrandConcept({
+                projectId: input.projectId,
+                ...concept,
+              });
+            }
+            
+            // Update project phase
             await db.updateBrandProject(input.projectId, {
               currentPhase: "concepts",
             });
+            
+            // Present concepts
+            aiResponse = formatConceptsPresentation(concepts);
           } else {
             aiResponse = "I can help refine the strategy. Which element would you like me to adjust? (positioning, purpose, audience, personality, values, tone, or differentiators)";
+          }
+        } else if (project.currentPhase === "concepts") {
+          // Handle concept selection
+          const conceptNumber = parseInt(input.content);
+          if (conceptNumber >= 1 && conceptNumber <= 3) {
+            const concepts = await db.getBrandConceptsByProjectId(input.projectId);
+            const selectedConcept = concepts[conceptNumber - 1];
+            
+            if (selectedConcept) {
+              await db.updateBrandProject(input.projectId, {
+                selectedConceptId: selectedConcept.id,
+                currentPhase: "refinement",
+              });
+              
+              aiResponse = `Excellent choice! **${selectedConcept.name}** is a strong direction.\n\nNow let's refine this concept. Would you like to:\n1. Adjust the color palette\n2. Change typography\n3. Refine the tagline\n4. Proceed to generate the final Brand Toolkit\n\nReply with your choice or type "generate toolkit" to proceed.`;
+            } else {
+              aiResponse = "I couldn't find that concept. Please select 1, 2, or 3.";
+            }
+          } else {
+            aiResponse = "Please select a concept by replying with 1, 2, or 3.";
+          }
+        } else if (project.currentPhase === "refinement") {
+          if (input.content.toLowerCase().includes('generate toolkit') || input.content.toLowerCase().includes('proceed')) {
+            aiResponse = "Perfect! I'm now assembling your complete Brand Toolkit. This comprehensive guide will include your strategy, visual identity, and all brand assets. This may take a minute...";
+            
+            await db.updateBrandProject(input.projectId, {
+              currentPhase: "toolkit",
+            });
+          } else {
+            aiResponse = "I can help refine that element. What specific changes would you like to make?";
           }
         } else {
           aiResponse = "I'm processing your request...";

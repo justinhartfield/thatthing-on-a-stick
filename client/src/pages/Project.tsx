@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, Send, Sparkles, User, CheckCircle2 } from "lucide-react";
 import { StrategyReview } from "@/components/StrategyReview";
+import { ConceptGallery } from "@/components/ConceptGallery";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { toast } from "sonner";
@@ -24,6 +25,11 @@ export default function Project() {
   const { data: messages, isLoading: messagesLoading, refetch } = trpc.chat.getMessages.useQuery(
     { projectId },
     { enabled: projectId > 0 }
+  );
+
+  const { data: concepts } = trpc.concepts.list.useQuery(
+    { projectId },
+    { enabled: projectId > 0 && (project?.currentPhase === "concepts" || project?.currentPhase === "refinement" || project?.currentPhase === "toolkit") }
   );
 
   const sendMessage = trpc.chat.sendMessage.useMutation({
@@ -183,6 +189,20 @@ export default function Project() {
             )}
           </div>
         </ScrollArea>
+
+        {/* Concepts Display */}
+        {(project.currentPhase === "concepts" || project.currentPhase === "refinement") && concepts && concepts.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <CheckCircle2 className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-bold">Your Brand Concepts</h2>
+            </div>
+            <ConceptGallery 
+              concepts={concepts} 
+              selectedId={project.selectedConceptId || undefined}
+            />
+          </div>
+        )}
 
         {/* Strategy Display */}
         {project.currentPhase === "strategy" && project.strategyData && (
