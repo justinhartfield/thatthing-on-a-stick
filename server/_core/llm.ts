@@ -312,21 +312,79 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetch(resolveApiUrl(), {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  const maxRetries = 3;
+  let lastError: Error | null = null;
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
-    );
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[LLM] Attempt ${attempt}/${maxRetries} - Calling ${resolveApiUrl()}`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
+      const response = await fetch(resolveApiUrl(), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${ENV.forgeApiKey}`,
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        const error = new Error(
+          `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
+        );
+        console.error(`[LLM] Attempt ${attempt} failed:`, error.message);
+        
+        // Don't retry on 4xx errors (client errors)
+        if (response.status >= 400 && response.status < 500) {
+          throw error;
+        }
+        
+        lastError = error;
+        continue;
+      }
+
+      const result = (await response.json()) as InvokeResult;
+      
+      // Validate the response has choices
+      if (!result.choices || result.choices.length === 0) {
+        console.error(`[LLM] Attempt ${attempt} returned empty choices. Response:`, JSON.stringify(result));
+        lastError = new Error('LLM returned empty choices array');
+        continue;
+      }
+      
+      console.log(`[LLM] Attempt ${attempt} succeeded`);
+      return result;
+      
+    } catch (error) {
+      const err = error as Error;
+      console.error(`[LLM] Attempt ${attempt} error:`, err.message);
+      
+      if (err.name === 'AbortError') {
+        lastError = new Error('LLM request timed out after 60 seconds');
+      } else {
+        lastError = err;
+      }
+      
+      // Don't retry if it's a client error that was re-thrown
+      if (err.message.includes('LLM invoke failed: 4')) {
+        throw err;
+      }
+    }
+
+    // Exponential backoff: wait 1s, 2s, 4s between retries
+    if (attempt < maxRetries) {
+      const waitTime = Math.pow(2, attempt - 1) * 1000;
+      console.log(`[LLM] Waiting ${waitTime}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
   }
 
-  return (await response.json()) as InvokeResult;
+  throw lastError || new Error('LLM invocation failed after all retries');
 }

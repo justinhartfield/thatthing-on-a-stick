@@ -12,7 +12,7 @@ import { generateToolkitMarkdown, formatToolkitPresentation } from "./toolkitGen
 import { updateDiscoveryProgress } from "./discoveryProgress";
 
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
+  // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
@@ -115,7 +115,7 @@ export const appRouter = router({
 
         // Get conversation history
         const messages = await db.getChatMessagesByProjectId(input.projectId);
-        
+
         // Update discovery progress if in discovery phase
         if (project.currentPhase === "discovery") {
           // Initialize progress if it doesn't exist
@@ -125,28 +125,28 @@ export const appRouter = router({
             discoveryProgress: JSON.stringify(updatedProgress)
           });
         }
-        
+
         // Generate AI response based on current phase
         let aiResponse = "";
         let answerChoices: string[] | undefined;
-        
+
         if (project.currentPhase === "discovery") {
           const discoveryResult = await generateDiscoveryResponse(messages, project);
           aiResponse = discoveryResult.response;
           answerChoices = discoveryResult.answerChoices;
           console.log('[DEBUG] Answer choices generated:', answerChoices);
-          
+
           // Check if discovery is complete (automatically after sufficient conversation)
           if (isDiscoveryComplete(messages)) {
             // Synthesize strategy
             const strategy = await synthesizeBrandStrategy(project, messages);
-            
+
             // Save strategy to project
             await db.updateBrandProject(input.projectId, {
               strategyData: JSON.stringify(strategy),
               currentPhase: "strategy",
             });
-            
+
             // Present strategy for review
             aiResponse = "🎉 Discovery complete! I've synthesized your insights into a comprehensive brand strategy.\n\n" + formatStrategyPresentation(strategy) + "\n\nPlease review the strategy above. Reply with 'approve' to proceed to creative concepts, or let me know if you'd like to refine any element.";
           }
@@ -154,11 +154,11 @@ export const appRouter = router({
           // Handle strategy approval/refinement
           if (input.content.toLowerCase().includes('approve')) {
             aiResponse = "Perfect! I'll now generate 3 distinct creative concepts for your brand. This will take a few moments...";
-            
+
             // Generate concepts
             const strategy = JSON.parse(project.strategyData!);
             const concepts = await generateCompleteConceptsWithImages(project, strategy);
-            
+
             // Save concepts to database
             for (const concept of concepts) {
               await db.createBrandConcept({
@@ -166,12 +166,12 @@ export const appRouter = router({
                 ...concept,
               });
             }
-            
+
             // Update project phase
             await db.updateBrandProject(input.projectId, {
               currentPhase: "concepts",
             });
-            
+
             // Present concepts
             aiResponse = formatConceptsPresentation(concepts);
           } else {
@@ -183,13 +183,13 @@ export const appRouter = router({
           if (conceptNumber >= 1 && conceptNumber <= 3) {
             const concepts = await db.getBrandConceptsByProjectId(input.projectId);
             const selectedConcept = concepts[conceptNumber - 1];
-            
+
             if (selectedConcept) {
               await db.updateBrandProject(input.projectId, {
                 selectedConceptId: selectedConcept.id,
                 currentPhase: "refinement",
               });
-              
+
               aiResponse = `Excellent choice! **${selectedConcept.name}** is a strong direction.\n\nNow let's refine this concept. Would you like to:\n1. Adjust the color palette\n2. Change typography\n3. Refine the tagline\n4. Proceed to generate the final Brand Toolkit\n\nReply with your choice or type "generate toolkit" to proceed.`;
             } else {
               aiResponse = "I couldn't find that concept. Please select 1, 2, or 3.";
@@ -202,24 +202,24 @@ export const appRouter = router({
             // Generate toolkit
             const strategy = JSON.parse(project.strategyData!);
             const selectedConcept = await db.getBrandConceptById(project.selectedConceptId!);
-            
+
             if (!selectedConcept) {
               throw new Error('Selected concept not found');
             }
-            
+
             const toolkitMarkdown = generateToolkitMarkdown({
               projectName: project.name,
               strategy,
               concept: selectedConcept,
               generatedAt: new Date(),
             });
-            
+
             // Save toolkit markdown to project (we'll store it in toolkitPdfUrl for now as text)
             await db.updateBrandProject(input.projectId, {
               toolkitPdfUrl: toolkitMarkdown,
               currentPhase: "completed",
             });
-            
+
             aiResponse = formatToolkitPresentation(project);
           } else {
             aiResponse = "I can help refine that element. What specific changes would you like to make?";
@@ -264,12 +264,12 @@ export const appRouter = router({
         if (!project || project.userId !== ctx.user.id) {
           throw new Error("Project not found");
         }
-        
+
         await db.updateBrandProject(input.projectId, {
           selectedConceptId: input.conceptId,
           currentPhase: "refinement",
         });
-        
+
         return { success: true };
       }),
   }),
@@ -280,19 +280,19 @@ export const appRouter = router({
       .input(z.object({ projectId: z.number() }))
       .query(async ({ input, ctx }) => {
         const project = await db.getBrandProjectById(input.projectId);
-        
+
         if (!project) {
           throw new Error('Project not found');
         }
-        
+
         if (project.userId !== ctx.user.id) {
           throw new Error('Unauthorized');
         }
-        
+
         if (!project.toolkitPdfUrl) {
           throw new Error('Toolkit not yet generated');
         }
-        
+
         return {
           markdown: project.toolkitPdfUrl,
           projectName: project.name,
@@ -334,14 +334,15 @@ IMPORTANT: Ask ONE clear, direct question at a time. Do NOT provide suggested an
   });
 
   if (!response || !response.choices || response.choices.length === 0) {
-    throw new Error('No response from LLM');
+    console.error('[LLM Discovery] Empty response from LLM. Response object:', JSON.stringify(response));
+    throw new Error('No response from LLM - the API returned an empty or invalid response. Please try again.');
   }
 
   const content = response.choices[0]!.message.content;
   if (!content) {
     throw new Error('Empty response from LLM');
   }
-  
+
   const question = typeof content === 'string' ? content : JSON.stringify(content);
 
   // If this is a question (not a completion message), generate answer choices
