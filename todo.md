@@ -80,3 +80,10 @@
 - [x] Create concept comparison UI
 - [x] Add concept selection and refinement workflow
 - [x] Test complete strategy-to-concepts flow
+
+## Enhancement: Multiple Choice Discovery
+- [x] Modify discovery LLM prompt to generate 3 answer choices per question
+- [x] Update chat message schema to include answer choices
+- [x] Create button UI for displaying answer choices
+- [x] Allow users to select from choices or provide custom answer
+- [x] Test multiple choice flow end-to-end

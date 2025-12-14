@@ -108,13 +108,10 @@ export type InsertBrandConcept = typeof brandConcepts.$inferInsert;
 export const chatMessages = mysqlTable("chat_messages", {
   id: int("id").autoincrement().primaryKey(),
   projectId: int("projectId").notNull(),
-  
-  role: mysqlEnum("role", ["user", "assistant", "system"]).notNull(),
+  role: mysqlEnum("role", ["user", "assistant"]).notNull(),
   content: text("content").notNull(),
-  
-  // Optional metadata for structured responses
-  metadata: text("metadata"),
-  
+  // Optional answer choices for multiple-choice questions
+  answerChoices: text("answerChoices"), // JSON array of strings
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

@@ -15,6 +15,13 @@
       "when": 1765696681928,
       "tag": "0001_needy_the_call",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1765699454791,
+      "tag": "0002_clumsy_risque",
+      "breakpoints": true
     }
   ]
 }

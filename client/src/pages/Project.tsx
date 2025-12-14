@@ -164,12 +164,45 @@ export default function Project() {
                     <User className="w-5 h-5 text-secondary-foreground" />
                   )}
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 space-y-3">
                   <Card className={msg.role === "assistant" ? "bg-muted" : "bg-card"}>
                     <CardContent className="p-4">
                       <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                     </CardContent>
                   </Card>
+                  
+                  {/* Answer Choices */}
+                  {msg.role === "assistant" && msg.answerChoices && (() => {
+                    try {
+                      const choices = JSON.parse(msg.answerChoices);
+                      if (Array.isArray(choices) && choices.length > 0) {
+                        return (
+                          <div className="space-y-2">
+                            {choices.map((choice: string, idx: number) => (
+                              <Button
+                                key={idx}
+                                variant="outline"
+                                className="w-full justify-start text-left h-auto py-3 px-4 border-2 hover:bg-primary hover:text-primary-foreground transition-colors"
+                                onClick={() => {
+                                  setMessage(choice);
+                                  setTimeout(() => handleSend(), 100);
+                                }}
+                              >
+                                <span className="font-bold mr-2">{idx + 1}.</span>
+                                <span className="flex-1">{choice}</span>
+                              </Button>
+                            ))}
+                            <p className="text-xs text-muted-foreground text-center pt-1">
+                              Or type your own answer below
+                            </p>
+                          </div>
+                        );
+                      }
+                    } catch (e) {
+                      return null;
+                    }
+                    return null;
+                  })()}
                 </div>
               </div>
             ))}

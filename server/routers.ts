@@ -115,9 +115,12 @@ export const appRouter = router({
         
         // Generate AI response based on current phase
         let aiResponse = "";
+        let answerChoices: string[] | undefined;
         
         if (project.currentPhase === "discovery") {
-          aiResponse = await generateDiscoveryResponse(messages, project);
+          const discoveryResult = await generateDiscoveryResponse(messages, project);
+          aiResponse = discoveryResult.response;
+          answerChoices = discoveryResult.answerChoices;
           
           // Check if discovery is complete
           if (isDiscoveryComplete(messages) && input.content.toLowerCase().includes('complete')) {
@@ -214,13 +217,14 @@ export const appRouter = router({
         }
 
         // Save AI response
-        const aiMessage = await db.createChatMessage({
+        await db.createChatMessage({
           projectId: input.projectId,
           role: "assistant",
           content: aiResponse,
+          answerChoices: answerChoices ? JSON.stringify(answerChoices) : null,
         });
 
-        return aiMessage;
+        return { success: true };
       }),
   }),
 
@@ -288,7 +292,7 @@ export type AppRouter = typeof appRouter;
 
 // Helper functions for AI responses
 
-async function generateDiscoveryResponse(messages: any[], project: any): Promise<string> {
+async function generateDiscoveryResponse(messages: any[], project: any): Promise<{ response: string; answerChoices?: string[] }> {
   const systemPrompt = `You are a brand strategist conducting a discovery interview. Ask thoughtful, probing questions to understand the user's brand vision. 
 
 Current project: ${project.name}
@@ -316,5 +320,55 @@ Ask one question at a time. Be conversational and encouraging. When you have eno
   });
 
   const content = response.choices[0]!.message.content;
-  return typeof content === 'string' ? content : JSON.stringify(content);
+  const question = typeof content === 'string' ? content : JSON.stringify(content);
+
+  // If this is a question (not a completion message), generate answer choices
+  if (!question.toLowerCase().includes('discovery complete') && !question.toLowerCase().includes('let me synthesize')) {
+    try {
+      const choicesPrompt = `Based on this brand discovery question for "${project.name}":\n\n"${question}"\n\nGenerate 3 relevant, distinct answer options that would be appropriate responses. Make them specific and realistic for this project context.`;
+
+      const choicesResponse = await invokeLLM({
+        messages: [
+          { role: 'system', content: 'You generate multiple choice answers for brand discovery questions. Provide 3 distinct, relevant options.' },
+          { role: 'user', content: choicesPrompt }
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "answer_choices",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: {
+                choices: {
+                  type: "array",
+                  items: { type: "string" },
+                  minItems: 3,
+                  maxItems: 3
+                }
+              },
+              required: ["choices"],
+              additionalProperties: false
+            }
+          }
+        }
+      });
+
+      if (choicesResponse.choices && choicesResponse.choices.length > 0) {
+        const choicesContent = choicesResponse.choices[0]!.message.content;
+        if (choicesContent) {
+          const parsed = JSON.parse(typeof choicesContent === 'string' ? choicesContent : JSON.stringify(choicesContent));
+          return {
+            response: question,
+            answerChoices: parsed.choices
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Failed to generate answer choices:', error);
+      // Fall through to return question without choices
+    }
+  }
+
+  return { response: question };
 }
