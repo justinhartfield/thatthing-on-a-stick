@@ -135,7 +135,7 @@
 - [ ] Verify error is caught and handled properly
 
 ## GitHub & Netlify Deployment
-- [ ] Commit all recent changes
-- [ ] Push to GitHub repository
-- [ ] Create Netlify configuration file
-- [ ] Add deployment instructions
+- [x] Commit all recent changes
+- [x] Push to GitHub repository
+- [x] Create Netlify configuration file
+- [x] Add deployment instructions
