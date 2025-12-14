@@ -1,7 +1,5 @@
 import "dotenv/config";
 import express from "express";
-import { createServer } from "http";
-import net from "net";
 import path from "path";
 import fs from "fs";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
@@ -29,77 +27,59 @@ app.use(
 );
 
 // For Netlify Functions - export a handler
-// The handler strips the /.netlify/functions/index prefix that Netlify adds
 export const handler = async (event: any, context: any) => {
-  // Dynamically import serverless-http only when needed
   const serverless = await import("serverless-http");
   const serverlessHandler = serverless.default(app);
   return serverlessHandler(event, context);
 };
 
-// Static file serving for production (inline to avoid importing vite.ts)
-function serveStatic(expressApp: express.Express) {
-  const distPath = path.resolve(import.meta.dirname, "public");
-  if (!fs.existsSync(distPath)) {
-    console.error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`
-    );
-  }
-
-  expressApp.use(express.static(distPath));
-
-  // fall through to index.html if the file doesn't exist
-  expressApp.use("*", (_req: any, res: any) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
-  });
-}
-
-// For development mode - start local server
-function isPortAvailable(port: number): Promise<boolean> {
-  return new Promise(resolve => {
-    const server = net.createServer();
-    server.listen(port, () => {
-      server.close(() => resolve(true));
+// Production only: serve static files
+// In development, tsx runs this file and Vite handles static files separately
+if (process.env.NODE_ENV !== "development") {
+  const distPath = path.resolve(
+    typeof __dirname !== "undefined" ? __dirname : ".",
+    "public"
+  );
+  if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+    app.use("*", (_req: any, res: any) => {
+      res.sendFile(path.resolve(distPath, "index.html"));
     });
-    server.on("error", () => resolve(false));
-  });
+  }
 }
 
-async function findAvailablePort(startPort: number = 3000): Promise<number> {
-  for (let port = startPort; port < startPort + 20; port++) {
-    if (await isPortAvailable(port)) {
-      return port;
-    }
-  }
-  throw new Error(`No available port found starting from ${startPort}`);
-}
-
-async function startServer() {
-  const server = createServer(app);
-
-  // development mode uses Vite, production mode uses static files
-  if (process.env.NODE_ENV === "development") {
-    // Dynamically import vite.ts only in development to avoid bundling vite dependencies
-    const { setupVite } = await import("./vite");
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
-
-  const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
-
-  if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
-  }
-
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
-  });
-}
-
-// Only start the server in development mode
-// In production (Netlify Functions), the handler export is used
+// Development mode: start local server with Vite HMR
+// This block only runs with tsx (not bundled code)
 if (process.env.NODE_ENV === "development") {
-  startServer().catch(console.error);
+  (async () => {
+    const { createServer } = await import("http");
+    const net = await import("net");
+    const { setupVite } = await import("./vite");
+
+    const server = createServer(app);
+    await setupVite(app, server);
+
+    // Find available port
+    const isPortAvailable = (port: number): Promise<boolean> =>
+      new Promise(resolve => {
+        const testServer = net.createServer();
+        testServer.listen(port, () => {
+          testServer.close(() => resolve(true));
+        });
+        testServer.on("error", () => resolve(false));
+      });
+
+    let port = parseInt(process.env.PORT || "3000");
+    for (let i = 0; i < 20; i++) {
+      if (await isPortAvailable(port + i)) {
+        port = port + i;
+        break;
+      }
+    }
+
+    server.listen(port, () => {
+      console.log(`Server running on http://localhost:${port}/`);
+    });
+  })().catch(console.error);
 }
+
