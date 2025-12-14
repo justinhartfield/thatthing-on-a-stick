@@ -1,0 +1,40 @@
+{
+  "query": "SELECT id, role, LEFT(content, 50) as content_preview, answerChoices FROM chat_messages ORDER BY id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3t54wF1UiKubjpt.dda6b5e20669 --database PWFKVpHpfbfKpbb6uwsHhT --execute SELECT id, role, LEFT(content, 50) as content_preview, answerChoices FROM chat_messages ORDER BY id DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "90005",
+      "role": "assistant",
+      "content_preview": "This is the heart of your business strategy. Why w",
+      "answerChoices": "NULL"
+    },
+    {
+      "id": "90004",
+      "role": "user",
+      "content_preview": "help me",
+      "answerChoices": "NULL"
+    },
+    {
+      "id": "90003",
+      "role": "user",
+      "content_preview": "ok start building",
+      "answerChoices": "NULL"
+    },
+    {
+      "id": "90002",
+      "role": "assistant",
+      "content_preview": "That is a powerful and resonant goal. **Empowermen",
+      "answerChoices": "NULL"
+    },
+    {
+      "id": "90001",
+      "role": "user",
+      "content_preview": "go",
+      "answerChoices": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\trole\tcontent_preview\tanswerChoices\n90005\tassistant\tThis is the heart of your business strategy. Why w\tNULL\n90004\tuser\thelp me\tNULL\n90003\tuser\tok start building\tNULL\n90002\tassistant\tThat is a powerful and resonant goal. **Empowermen\tNULL\n90001\tuser\tgo\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 52
+}

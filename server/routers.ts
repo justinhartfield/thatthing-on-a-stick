@@ -134,6 +134,7 @@ export const appRouter = router({
           const discoveryResult = await generateDiscoveryResponse(messages, project);
           aiResponse = discoveryResult.response;
           answerChoices = discoveryResult.answerChoices;
+          console.log('[DEBUG] Answer choices generated:', answerChoices);
           
           // Check if discovery is complete (automatically after sufficient conversation)
           if (isDiscoveryComplete(messages)) {
@@ -318,7 +319,7 @@ Guide the conversation through these sections:
 4. Strategic Intent (purpose, values, personality)
 5. Creative Direction (aesthetic preferences, touchpoints)
 
-Ask one question at a time. Be conversational and encouraging. When you have enough information for a section, acknowledge it and move to the next section. After all sections are complete, say "Discovery complete! Let me synthesize your brand strategy."`;
+IMPORTANT: Ask ONE clear, direct question at a time. Do NOT provide suggested answers or examples in your response. Be conversational and encouraging. When you have enough information for a section, acknowledge it and move to the next section. After all sections are complete, say "Discovery complete! Let me synthesize your brand strategy."`;
 
   const conversationHistory = messages.map(m => ({
     role: m.role as "user" | "assistant" | "system",
@@ -338,7 +339,11 @@ Ask one question at a time. Be conversational and encouraging. When you have eno
   // If this is a question (not a completion message), generate answer choices
   if (!question.toLowerCase().includes('discovery complete') && !question.toLowerCase().includes('let me synthesize')) {
     try {
-      const choicesPrompt = `Based on this brand discovery question for "${project.name}":\n\n"${question}"\n\nGenerate 3 relevant, distinct answer options that would be appropriate responses. Make them specific and realistic for this project context.`;
+      const choicesPrompt = `For the brand "${project.name}" (${project.initialConcept}), generate 3 distinct, realistic answer options for this question:\n\n"${question}"\n\nEach answer should be:
+- Specific and actionable (not vague)
+- Different from the others (covering different angles)
+- Realistic for this brand context
+- 1-2 sentences maximum\n\nReturn ONLY the 3 answer choices, nothing else.`;
 
       const choicesResponse = await invokeLLM({
         messages: [
@@ -369,8 +374,10 @@ Ask one question at a time. Be conversational and encouraging. When you have eno
 
       if (choicesResponse.choices && choicesResponse.choices.length > 0) {
         const choicesContent = choicesResponse.choices[0]!.message.content;
+        console.log('[DEBUG] Choices response content:', choicesContent);
         if (choicesContent) {
           const parsed = JSON.parse(typeof choicesContent === 'string' ? choicesContent : JSON.stringify(choicesContent));
+          console.log('[DEBUG] Parsed choices:', parsed.choices);
           return {
             response: question,
             answerChoices: parsed.choices
@@ -378,7 +385,7 @@ Ask one question at a time. Be conversational and encouraging. When you have eno
         }
       }
     } catch (error) {
-      console.error('Failed to generate answer choices:', error);
+      console.error('[DEBUG] Failed to generate answer choices:', error);
       // Fall through to return question without choices
     }
   }
