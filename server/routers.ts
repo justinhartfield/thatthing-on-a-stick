@@ -8,6 +8,7 @@ import { invokeLLM } from "./_core/llm";
 import { generateImage } from "./_core/imageGeneration";
 import { synthesizeBrandStrategy, formatStrategyPresentation, isDiscoveryComplete } from "./strategySynthesis";
 import { generateCompleteConceptsWithImages, formatConceptsPresentation } from "./conceptGeneration";
+import { generateToolkitMarkdown, formatToolkitPresentation } from "./toolkitGeneration";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -181,14 +182,33 @@ export const appRouter = router({
           }
         } else if (project.currentPhase === "refinement") {
           if (input.content.toLowerCase().includes('generate toolkit') || input.content.toLowerCase().includes('proceed')) {
-            aiResponse = "Perfect! I'm now assembling your complete Brand Toolkit. This comprehensive guide will include your strategy, visual identity, and all brand assets. This may take a minute...";
+            // Generate toolkit
+            const strategy = JSON.parse(project.strategyData!);
+            const selectedConcept = await db.getBrandConceptById(project.selectedConceptId!);
             
-            await db.updateBrandProject(input.projectId, {
-              currentPhase: "toolkit",
+            if (!selectedConcept) {
+              throw new Error('Selected concept not found');
+            }
+            
+            const toolkitMarkdown = generateToolkitMarkdown({
+              projectName: project.name,
+              strategy,
+              concept: selectedConcept,
+              generatedAt: new Date(),
             });
+            
+            // Save toolkit markdown to project (we'll store it in toolkitPdfUrl for now as text)
+            await db.updateBrandProject(input.projectId, {
+              toolkitPdfUrl: toolkitMarkdown,
+              currentPhase: "completed",
+            });
+            
+            aiResponse = formatToolkitPresentation(project);
           } else {
             aiResponse = "I can help refine that element. What specific changes would you like to make?";
           }
+        } else if (project.currentPhase === "completed") {
+          aiResponse = "Your brand toolkit is complete! You can download it anytime. Is there anything else you'd like to refine or any questions about implementing your brand?";
         } else {
           aiResponse = "I'm processing your request...";
         }
@@ -233,6 +253,32 @@ export const appRouter = router({
         });
         
         return { success: true };
+      }),
+  }),
+
+  // Brand Toolkit
+  toolkit: router({
+    getToolkit: protectedProcedure
+      .input(z.object({ projectId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const project = await db.getBrandProjectById(input.projectId);
+        
+        if (!project) {
+          throw new Error('Project not found');
+        }
+        
+        if (project.userId !== ctx.user.id) {
+          throw new Error('Unauthorized');
+        }
+        
+        if (!project.toolkitPdfUrl) {
+          throw new Error('Toolkit not yet generated');
+        }
+        
+        return {
+          markdown: project.toolkitPdfUrl,
+          projectName: project.name,
+        };
       }),
   }),
 });

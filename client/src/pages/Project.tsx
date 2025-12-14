@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { ArrowLeft, Send, Sparkles, User, CheckCircle2 } from "lucide-react";
 import { StrategyReview } from "@/components/StrategyReview";
 import { ConceptGallery } from "@/components/ConceptGallery";
+import { ToolkitViewer } from "@/components/ToolkitViewer";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { toast } from "sonner";
@@ -29,7 +30,12 @@ export default function Project() {
 
   const { data: concepts } = trpc.concepts.list.useQuery(
     { projectId },
-    { enabled: projectId > 0 && (project?.currentPhase === "concepts" || project?.currentPhase === "refinement" || project?.currentPhase === "toolkit") }
+    { enabled: projectId > 0 && (project?.currentPhase === "concepts" || project?.currentPhase === "refinement" || project?.currentPhase === "toolkit" || project?.currentPhase === "completed") }
+  );
+
+  const { data: toolkit } = trpc.toolkit.getToolkit.useQuery(
+    { projectId },
+    { enabled: projectId > 0 && project?.currentPhase === "completed" }
   );
 
   const sendMessage = trpc.chat.sendMessage.useMutation({
@@ -92,7 +98,7 @@ export default function Project() {
       concepts: "Review the creative concepts I've generated for your brand.",
       refinement: "Let's refine your selected concept into a complete brand identity.",
       toolkit: "Your brand toolkit is being assembled.",
-      completed: "Your brand identity is complete!",
+      completed: "Your complete brand toolkit is ready! Download it below or ask me any questions.",
     };
     return descriptions[phase] || "Working on your brand...";
   };
@@ -190,8 +196,15 @@ export default function Project() {
           </div>
         </ScrollArea>
 
+        {/* Toolkit Display */}
+        {project.currentPhase === "completed" && toolkit && (
+          <div className="mb-6">
+            <ToolkitViewer markdown={toolkit.markdown} projectName={toolkit.projectName} />
+          </div>
+        )}
+
         {/* Concepts Display */}
-        {(project.currentPhase === "concepts" || project.currentPhase === "refinement") && concepts && concepts.length > 0 && (
+        {(project.currentPhase === "concepts" || project.currentPhase === "refinement" || project.currentPhase === "completed") && concepts && concepts.length > 0 && (
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-4">
               <CheckCircle2 className="w-5 h-5 text-primary" />
