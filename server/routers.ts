@@ -134,22 +134,18 @@ export const appRouter = router({
           console.log('[DEBUG] About to call generateDiscoveryResponse');
           const discoveryResult = await generateDiscoveryResponse(messages, project);
           console.log('[DEBUG] generateDiscoveryResponse returned:', discoveryResult);
-          
+
           if (!discoveryResult || !discoveryResult.response) {
             console.error('[DEBUG] Invalid discovery result:', discoveryResult);
             throw new Error('Invalid response from discovery engine');
           }
-          
+
           aiResponse = discoveryResult.response;
           answerChoices = discoveryResult.answerChoices;
           console.log('[DEBUG] aiResponse set to:', aiResponse.substring(0, 100));
           console.log('[DEBUG] Answer choices generated:', answerChoices);
-<<<<<<< HEAD
 
-=======
-          
           console.log('[DEBUG] Checking if discovery is complete...');
->>>>>>> b17082ceaab341789001eeb9c2fc85402c9924de
           // Check if discovery is complete (automatically after sufficient conversation)
           if (isDiscoveryComplete(messages)) {
             console.log('[DEBUG] Discovery is complete! Synthesizing strategy...');
@@ -255,7 +251,7 @@ export const appRouter = router({
         });
 
         console.log('[DEBUG] Mutation complete, returning success');
-        return { 
+        return {
           success: true,
           message: aiMessage
         };
@@ -328,7 +324,7 @@ export type AppRouter = typeof appRouter;
 
 async function generateDiscoveryResponse(messages: any[], project: any): Promise<{ response: string; answerChoices?: string[] }> {
   console.log('[DEBUG] generateDiscoveryResponse called for project:', project.name);
-  
+
   const systemPrompt = `You are a brand strategist conducting a discovery interview. Ask thoughtful, probing questions to understand the user's brand vision. 
 
 Current project: ${project.name}
@@ -348,28 +344,8 @@ IMPORTANT: Ask ONE clear, direct question at a time. Do NOT provide suggested an
     content: String(m.content)
   }));
 
-<<<<<<< HEAD
-  const response = await invokeLLM({
-    messages: [
-      { role: "system", content: systemPrompt },
-      ...conversationHistory
-    ]
-  });
-
-  if (!response || !response.choices || response.choices.length === 0) {
-    console.error('[LLM Discovery] Empty response from LLM. Response object:', JSON.stringify(response));
-    throw new Error('No response from LLM - the API returned an empty or invalid response. Please try again.');
-  }
-
-  const content = response.choices[0]!.message.content;
-  if (!content) {
-    throw new Error('Empty response from LLM');
-  }
-
-  const question = typeof content === 'string' ? content : JSON.stringify(content);
-=======
   console.log('[DEBUG] Calling main LLM for discovery question...');
-  
+
   try {
     const response = await invokeLLM({
       messages: [
@@ -381,8 +357,8 @@ IMPORTANT: Ask ONE clear, direct question at a time. Do NOT provide suggested an
     console.log('[DEBUG] LLM response received:', JSON.stringify(response).substring(0, 200));
 
     if (!response || !response.choices || response.choices.length === 0) {
-      console.error('[DEBUG] Invalid LLM response structure');
-      throw new Error('No response from LLM');
+      console.error('[LLM Discovery] Empty response from LLM. Response object:', JSON.stringify(response));
+      throw new Error('No response from LLM - the API returned an empty or invalid response. Please try again.');
     }
 
     const content = response.choices[0]!.message.content;
@@ -390,76 +366,76 @@ IMPORTANT: Ask ONE clear, direct question at a time. Do NOT provide suggested an
       console.error('[DEBUG] Empty content in LLM response');
       throw new Error('Empty response from LLM');
     }
-    
+
     const question = typeof content === 'string' ? content : JSON.stringify(content);
     console.log('[DEBUG] Question extracted:', question.substring(0, 100));
->>>>>>> b17082ceaab341789001eeb9c2fc85402c9924de
 
-  // If this is a question (not a completion message), generate answer choices
-  if (!question.toLowerCase().includes('discovery complete') && !question.toLowerCase().includes('let me synthesize')) {
-    try {
-      const choicesPrompt = `For the brand "${project.name}" (${project.initialConcept}), generate 3 distinct, realistic answer options for this question:\n\n"${question}"\n\nEach answer should be:
+    // If this is a question (not a completion message), generate answer choices
+    if (!question.toLowerCase().includes('discovery complete') && !question.toLowerCase().includes('let me synthesize')) {
+      try {
+        const choicesPrompt = `For the brand "${project.name}" (${project.initialConcept}), generate 3 distinct, realistic answer options for this question:\n\n"${question}"\n\nEach answer should be:
 - Specific and actionable (not vague)
 - Different from the others (covering different angles)
 - Realistic for this brand context
 - 1-2 sentences maximum\n\nReturn ONLY the 3 answer choices, nothing else.`;
 
-      const choicesResponse = await invokeLLM({
-        messages: [
-          { role: 'system', content: 'You generate multiple choice answers for brand discovery questions. Provide 3 distinct, relevant options.' },
-          { role: 'user', content: choicesPrompt }
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "answer_choices",
-            strict: true,
-            schema: {
-              type: "object",
-              properties: {
-                choices: {
-                  type: "array",
-                  items: { type: "string" },
-                  minItems: 3,
-                  maxItems: 3
-                }
-              },
-              required: ["choices"],
-              additionalProperties: false
+        const choicesResponse = await invokeLLM({
+          messages: [
+            { role: 'system', content: 'You generate multiple choice answers for brand discovery questions. Provide 3 distinct, relevant options.' },
+            { role: 'user', content: choicesPrompt }
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "answer_choices",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  choices: {
+                    type: "array",
+                    items: { type: "string" },
+                    minItems: 3,
+                    maxItems: 3
+                  }
+                },
+                required: ["choices"],
+                additionalProperties: false
+              }
             }
           }
-        }
-      });
+        });
 
-      if (choicesResponse && choicesResponse.choices && choicesResponse.choices.length > 0) {
-        const choicesContent = choicesResponse.choices[0]!.message.content;
-        console.log('[DEBUG] Choices response content:', choicesContent);
-        if (choicesContent) {
-          try {
-            const parsed = JSON.parse(typeof choicesContent === 'string' ? choicesContent : JSON.stringify(choicesContent));
-            console.log('[DEBUG] Parsed choices:', parsed.choices);
-            if (parsed.choices && Array.isArray(parsed.choices) && parsed.choices.length === 3) {
-              return {
-                response: question,
-                answerChoices: parsed.choices
-              };
+        if (choicesResponse && choicesResponse.choices && choicesResponse.choices.length > 0) {
+          const choicesContent = choicesResponse.choices[0]!.message.content;
+          console.log('[DEBUG] Choices response content:', choicesContent);
+          if (choicesContent) {
+            try {
+              const parsed = JSON.parse(typeof choicesContent === 'string' ? choicesContent : JSON.stringify(choicesContent));
+              console.log('[DEBUG] Parsed choices:', parsed.choices);
+              if (parsed.choices && Array.isArray(parsed.choices) && parsed.choices.length === 3) {
+                return {
+                  response: question,
+                  answerChoices: parsed.choices
+                };
+              }
+            } catch (parseError) {
+              console.error('[DEBUG] Failed to parse choices:', parseError);
             }
-          } catch (parseError) {
-            console.error('[DEBUG] Failed to parse choices:', parseError);
           }
         }
+      } catch (error) {
+        console.error('[DEBUG] Failed to generate answer choices:', error);
+        // Fall through to return question without choices
       }
-    } catch (error) {
-      console.error('[DEBUG] Failed to generate answer choices:', error);
-      // Fall through to return question without choices
     }
-  }
 
-  // Always return the question, even if choices generation failed
-  console.log('[DEBUG] Returning question without choices');
-  return { response: question };
+    // Always return the question, even if choices generation failed
+    console.log('[DEBUG] Returning question without choices');
+    return { response: question };
   } catch (error) {
     console.error('[DEBUG] Fatal error in generateDiscoveryResponse:', error);
     throw error;
   }
 }
+
