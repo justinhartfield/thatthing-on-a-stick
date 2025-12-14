@@ -9,6 +9,7 @@ import { generateImage } from "./_core/imageGeneration";
 import { synthesizeBrandStrategy, formatStrategyPresentation, isDiscoveryComplete } from "./strategySynthesis";
 import { generateCompleteConceptsWithImages, formatConceptsPresentation } from "./conceptGeneration";
 import { generateToolkitMarkdown, formatToolkitPresentation } from "./toolkitGeneration";
+import { updateDiscoveryProgress } from "./discoveryProgress";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -113,6 +114,14 @@ export const appRouter = router({
         // Get conversation history
         const messages = await db.getChatMessagesByProjectId(input.projectId);
         
+        // Update discovery progress if in discovery phase
+        if (project.currentPhase === "discovery") {
+          const updatedProgress = updateDiscoveryProgress(messages, project.discoveryProgress);
+          await db.updateBrandProject(input.projectId, {
+            discoveryProgress: JSON.stringify(updatedProgress)
+          });
+        }
+        
         // Generate AI response based on current phase
         let aiResponse = "";
         let answerChoices: string[] | undefined;
@@ -122,8 +131,8 @@ export const appRouter = router({
           aiResponse = discoveryResult.response;
           answerChoices = discoveryResult.answerChoices;
           
-          // Check if discovery is complete
-          if (isDiscoveryComplete(messages) && input.content.toLowerCase().includes('complete')) {
+          // Check if discovery is complete (automatically after sufficient conversation)
+          if (isDiscoveryComplete(messages)) {
             // Synthesize strategy
             const strategy = await synthesizeBrandStrategy(project, messages);
             
@@ -134,7 +143,7 @@ export const appRouter = router({
             });
             
             // Present strategy for review
-            aiResponse = formatStrategyPresentation(strategy);
+            aiResponse = "🎉 Discovery complete! I've synthesized your insights into a comprehensive brand strategy.\n\n" + formatStrategyPresentation(strategy) + "\n\nPlease review the strategy above. Reply with 'approve' to proceed to creative concepts, or let me know if you'd like to refine any element.";
           }
         } else if (project.currentPhase === "strategy") {
           // Handle strategy approval/refinement

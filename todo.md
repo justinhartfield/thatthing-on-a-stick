@@ -87,3 +87,17 @@
 - [x] Create button UI for displaying answer choices
 - [x] Allow users to select from choices or provide custom answer
 - [x] Test multiple choice flow end-to-end
+
+## Enhancement: Discovery Progress Bar
+- [ ] Add discoveryProgress field to brandProjects schema
+- [ ] Create helper function to calculate progress percentage
+- [ ] Update discovery conversation to track section completion
+- [ ] Build progress bar UI component with section indicators
+- [ ] Display progress bar on project page during discovery phase
+- [ ] Test progress tracking end-to-end
+
+## Bug Fix: Discovery to Concepts Flow
+- [x] Fix discovery completion detection logic
+- [x] Ensure strategy synthesis triggers automatically
+- [x] Ensure concept generation triggers after strategy approval
+- [ ] Test complete end-to-end flow from discovery to concepts

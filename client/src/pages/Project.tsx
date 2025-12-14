@@ -7,6 +7,7 @@ import { ArrowLeft, Send, Sparkles, User, CheckCircle2 } from "lucide-react";
 import { StrategyReview } from "@/components/StrategyReview";
 import { ConceptGallery } from "@/components/ConceptGallery";
 import { ToolkitViewer } from "@/components/ToolkitViewer";
+import { DiscoveryProgress } from "@/components/DiscoveryProgress";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { toast } from "sonner";
@@ -122,6 +123,20 @@ export default function Project() {
           </div>
         </div>
       </div>
+
+      {/* Discovery Progress Bar */}
+      {project.currentPhase === "discovery" && project.discoveryProgress && (() => {
+        try {
+          const progress = JSON.parse(project.discoveryProgress);
+          return (
+            <div className="container max-w-4xl pt-6">
+              <DiscoveryProgress progress={progress} />
+            </div>
+          );
+        } catch (e) {
+          return null;
+        }
+      })()}
 
       {/* Chat Area */}
       <div className="flex-1 container py-6 flex flex-col max-w-4xl">

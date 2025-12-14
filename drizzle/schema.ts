@@ -49,6 +49,9 @@ export const brandProjects = mysqlTable("brand_projects", {
   // Discovery data (JSON storage for flexibility)
   discoveryAnswers: text("discoveryAnswers"),
   
+  // Discovery progress tracking (JSON: { basics: 0, business: 0, market: 0, strategy: 0, creative: 0 })
+  discoveryProgress: text("discoveryProgress"),
+  
   // Strategy output
   strategyData: text("strategyData"),
   
