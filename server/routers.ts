@@ -37,12 +37,14 @@ export const appRouter = router({
         initialConcept: z.string().min(10),
       }))
       .mutation(async ({ ctx, input }) => {
-        return await db.createBrandProject({
+        const project = await db.createBrandProject({
           userId: ctx.user.id,
           name: input.name,
           initialConcept: input.initialConcept,
           currentPhase: "discovery",
+          discoveryProgress: JSON.stringify({ basics: 0, business: 0, market: 0, strategy: 0, creative: 0 }),
         });
+        return project;
       }),
 
     get: protectedProcedure
@@ -116,7 +118,9 @@ export const appRouter = router({
         
         // Update discovery progress if in discovery phase
         if (project.currentPhase === "discovery") {
-          const updatedProgress = updateDiscoveryProgress(messages, project.discoveryProgress);
+          // Initialize progress if it doesn't exist
+          const currentProgress = project.discoveryProgress || JSON.stringify({ basics: 0, business: 0, market: 0, strategy: 0, creative: 0 });
+          const updatedProgress = updateDiscoveryProgress(messages, currentProgress);
           await db.updateBrandProject(input.projectId, {
             discoveryProgress: JSON.stringify(updatedProgress)
           });
