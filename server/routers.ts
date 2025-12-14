@@ -333,7 +333,15 @@ IMPORTANT: Ask ONE clear, direct question at a time. Do NOT provide suggested an
     ]
   });
 
+  if (!response || !response.choices || response.choices.length === 0) {
+    throw new Error('No response from LLM');
+  }
+
   const content = response.choices[0]!.message.content;
+  if (!content) {
+    throw new Error('Empty response from LLM');
+  }
+  
   const question = typeof content === 'string' ? content : JSON.stringify(content);
 
   // If this is a question (not a completion message), generate answer choices
@@ -372,16 +380,22 @@ IMPORTANT: Ask ONE clear, direct question at a time. Do NOT provide suggested an
         }
       });
 
-      if (choicesResponse.choices && choicesResponse.choices.length > 0) {
+      if (choicesResponse && choicesResponse.choices && choicesResponse.choices.length > 0) {
         const choicesContent = choicesResponse.choices[0]!.message.content;
         console.log('[DEBUG] Choices response content:', choicesContent);
         if (choicesContent) {
-          const parsed = JSON.parse(typeof choicesContent === 'string' ? choicesContent : JSON.stringify(choicesContent));
-          console.log('[DEBUG] Parsed choices:', parsed.choices);
-          return {
-            response: question,
-            answerChoices: parsed.choices
-          };
+          try {
+            const parsed = JSON.parse(typeof choicesContent === 'string' ? choicesContent : JSON.stringify(choicesContent));
+            console.log('[DEBUG] Parsed choices:', parsed.choices);
+            if (parsed.choices && Array.isArray(parsed.choices) && parsed.choices.length === 3) {
+              return {
+                response: question,
+                answerChoices: parsed.choices
+              };
+            }
+          } catch (parseError) {
+            console.error('[DEBUG] Failed to parse choices:', parseError);
+          }
         }
       }
     } catch (error) {
@@ -390,5 +404,6 @@ IMPORTANT: Ask ONE clear, direct question at a time. Do NOT provide suggested an
     }
   }
 
+  // Always return the question, even if choices generation failed
   return { response: question };
 }

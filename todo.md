@@ -114,3 +114,15 @@
 - [x] Verify answerChoices are saved to database correctly
 - [x] Test answer choices display as clickable buttons
 - [x] Test answer choices display end-to-end
+
+## Bug Fix: "No response from LLM" Error
+- [x] Check LLM invocation error handling
+- [x] Ensure graceful fallback when answer choices generation fails
+- [x] Verify main question response is always returned
+- [x] Test error recovery end-to-end
+
+## GitHub Repository Setup
+- [ ] Create new GitHub repo 'thatthing-on-a-stick'
+- [ ] Initialize git repository in project
+- [ ] Add all project files to git
+- [ ] Push to GitHub
