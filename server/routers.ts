@@ -131,13 +131,24 @@ export const appRouter = router({
         let answerChoices: string[] | undefined;
         
         if (project.currentPhase === "discovery") {
+          console.log('[DEBUG] About to call generateDiscoveryResponse');
           const discoveryResult = await generateDiscoveryResponse(messages, project);
+          console.log('[DEBUG] generateDiscoveryResponse returned:', discoveryResult);
+          
+          if (!discoveryResult || !discoveryResult.response) {
+            console.error('[DEBUG] Invalid discovery result:', discoveryResult);
+            throw new Error('Invalid response from discovery engine');
+          }
+          
           aiResponse = discoveryResult.response;
           answerChoices = discoveryResult.answerChoices;
+          console.log('[DEBUG] aiResponse set to:', aiResponse.substring(0, 100));
           console.log('[DEBUG] Answer choices generated:', answerChoices);
           
+          console.log('[DEBUG] Checking if discovery is complete...');
           // Check if discovery is complete (automatically after sufficient conversation)
           if (isDiscoveryComplete(messages)) {
+            console.log('[DEBUG] Discovery is complete! Synthesizing strategy...');
             // Synthesize strategy
             const strategy = await synthesizeBrandStrategy(project, messages);
             
@@ -230,15 +241,20 @@ export const appRouter = router({
           aiResponse = "I'm processing your request...";
         }
 
+        console.log('[DEBUG] About to save AI response:', aiResponse.substring(0, 100));
         // Save AI response
-        await db.createChatMessage({
+        const aiMessage = await db.createChatMessage({
           projectId: input.projectId,
           role: "assistant",
           content: aiResponse,
           answerChoices: answerChoices ? JSON.stringify(answerChoices) : null,
         });
 
-        return { success: true };
+        console.log('[DEBUG] Mutation complete, returning success');
+        return { 
+          success: true,
+          message: aiMessage
+        };
       }),
   }),
 
@@ -307,6 +323,8 @@ export type AppRouter = typeof appRouter;
 // Helper functions for AI responses
 
 async function generateDiscoveryResponse(messages: any[], project: any): Promise<{ response: string; answerChoices?: string[] }> {
+  console.log('[DEBUG] generateDiscoveryResponse called for project:', project.name);
+  
   const systemPrompt = `You are a brand strategist conducting a discovery interview. Ask thoughtful, probing questions to understand the user's brand vision. 
 
 Current project: ${project.name}
@@ -326,23 +344,31 @@ IMPORTANT: Ask ONE clear, direct question at a time. Do NOT provide suggested an
     content: String(m.content)
   }));
 
-  const response = await invokeLLM({
-    messages: [
-      { role: "system", content: systemPrompt },
-      ...conversationHistory
-    ]
-  });
-
-  if (!response || !response.choices || response.choices.length === 0) {
-    throw new Error('No response from LLM');
-  }
-
-  const content = response.choices[0]!.message.content;
-  if (!content) {
-    throw new Error('Empty response from LLM');
-  }
+  console.log('[DEBUG] Calling main LLM for discovery question...');
   
-  const question = typeof content === 'string' ? content : JSON.stringify(content);
+  try {
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...conversationHistory
+      ]
+    });
+
+    console.log('[DEBUG] LLM response received:', JSON.stringify(response).substring(0, 200));
+
+    if (!response || !response.choices || response.choices.length === 0) {
+      console.error('[DEBUG] Invalid LLM response structure');
+      throw new Error('No response from LLM');
+    }
+
+    const content = response.choices[0]!.message.content;
+    if (!content) {
+      console.error('[DEBUG] Empty content in LLM response');
+      throw new Error('Empty response from LLM');
+    }
+    
+    const question = typeof content === 'string' ? content : JSON.stringify(content);
+    console.log('[DEBUG] Question extracted:', question.substring(0, 100));
 
   // If this is a question (not a completion message), generate answer choices
   if (!question.toLowerCase().includes('discovery complete') && !question.toLowerCase().includes('let me synthesize')) {
@@ -405,5 +431,10 @@ IMPORTANT: Ask ONE clear, direct question at a time. Do NOT provide suggested an
   }
 
   // Always return the question, even if choices generation failed
+  console.log('[DEBUG] Returning question without choices');
   return { response: question };
+  } catch (error) {
+    console.error('[DEBUG] Fatal error in generateDiscoveryResponse:', error);
+    throw error;
+  }
 }
