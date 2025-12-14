@@ -6,6 +6,7 @@ import { z } from "zod";
 import * as db from "./db";
 import { invokeLLM } from "./_core/llm";
 import { generateImage } from "./_core/imageGeneration";
+import { synthesizeBrandStrategy, formatStrategyPresentation, isDiscoveryComplete } from "./strategySynthesis";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -115,8 +116,32 @@ export const appRouter = router({
         
         if (project.currentPhase === "discovery") {
           aiResponse = await generateDiscoveryResponse(messages, project);
+          
+          // Check if discovery is complete
+          if (isDiscoveryComplete(messages) && input.content.toLowerCase().includes('complete')) {
+            // Synthesize strategy
+            const strategy = await synthesizeBrandStrategy(project, messages);
+            
+            // Save strategy to project
+            await db.updateBrandProject(input.projectId, {
+              strategyData: JSON.stringify(strategy),
+              currentPhase: "strategy",
+            });
+            
+            // Present strategy for review
+            aiResponse = formatStrategyPresentation(strategy);
+          }
         } else if (project.currentPhase === "strategy") {
-          aiResponse = "Strategy synthesis in progress...";
+          // Handle strategy approval/refinement
+          if (input.content.toLowerCase().includes('approve')) {
+            aiResponse = "Perfect! I'll now generate 3 distinct creative concepts for your brand. This will take a few moments...";
+            // Trigger concept generation
+            await db.updateBrandProject(input.projectId, {
+              currentPhase: "concepts",
+            });
+          } else {
+            aiResponse = "I can help refine the strategy. Which element would you like me to adjust? (positioning, purpose, audience, personality, values, tone, or differentiators)";
+          }
         } else {
           aiResponse = "I'm processing your request...";
         }

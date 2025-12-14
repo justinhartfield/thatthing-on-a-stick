@@ -3,7 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Send, Sparkles, User } from "lucide-react";
+import { ArrowLeft, Send, Sparkles, User, CheckCircle2 } from "lucide-react";
+import { StrategyReview } from "@/components/StrategyReview";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { toast } from "sonner";
@@ -182,6 +183,17 @@ export default function Project() {
             )}
           </div>
         </ScrollArea>
+
+        {/* Strategy Display */}
+        {project.currentPhase === "strategy" && project.strategyData && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <CheckCircle2 className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-bold">Your Brand Strategy</h2>
+            </div>
+            <StrategyReview strategy={JSON.parse(project.strategyData)} />
+          </div>
+        )}
 
         {/* Input Area */}
         <div className="mt-4 flex gap-2">
