@@ -4,25 +4,18 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Layout from "./components/Layout";
-import Home from "./pages/Home";
-import Framework from "./pages/Framework";
-import AIBlueprint from "./pages/AIBlueprint";
-import Patterns from "./pages/Patterns";
-
+import Dashboard from "./pages/Dashboard";
+import Project from "./pages/Project";
 function Router() {
+  // make sure to consider if you need authentication for certain routes
   return (
-    <Layout>
-      <Switch>
-        <Route path={"/"} component={Home} />
-        <Route path={"/framework"} component={Framework} />
-        <Route path={"/ai-blueprint"} component={AIBlueprint} />
-        <Route path={"/patterns"} component={Patterns} />
-        <Route path={"/404"} component={NotFound} />
-        {/* Final fallback route */}
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+    <Switch>
+      <Route path={"/"} component={Dashboard} />
+      <Route path={"/project/:id"} component={Project} />
+      <Route path={"/404"} component={NotFound} />
+      {/* Final fallback route */}
+      <Route component={NotFound} />
+    </Switch>
   );
 }
 
